@@ -96,7 +96,17 @@ def dedupe_key(line: str) -> str:
     if not line:
         return ""
 
-    parsed = urlsplit(line)
+    # A malformed connection URI (for example, an invalid bracketed IPv6 host)
+    # can make urlsplit raise ValueError. Skip that bad config instead of stopping
+    # the entire hourly collection.
+    try:
+        parsed = urlsplit(line)
+    except ValueError:
+        lowered = line.lower()
+        if any(lowered.startswith(f"{scheme}://") for scheme in CONFIG_SCHEMES):
+            return ""
+        return line
+
     scheme = parsed.scheme.lower()
     if scheme not in CONFIG_SCHEMES or not parsed.netloc:
         return line
